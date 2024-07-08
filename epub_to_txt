@@ -1,0 +1,57 @@
+import os
+import re
+from ebooklib import epub
+from bs4 import BeautifulSoup
+
+
+def clean_text(text):
+    # 移除编号符号前后的换行符和多余空格，确保编号符号不换行
+    text = re.sub(r'\n\s*(?=[①-⑩])', '', text)
+    text = re.sub(r'(?<=[①-⑩])\s*\n', '', text)
+    # 移除多余的空行
+    text = re.sub(r'\n\s*\n', '\n\n', text).strip()
+    # 移除行首和行尾的多余空格
+    text = re.sub(r'^\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'\s+$', '', text, flags=re.MULTILINE)
+    return text
+
+
+def epub_to_single_txt(epub_file, output_file):
+    # 打开EPUB文件，显式设置 ignore_ncx 选项
+    book = epub.read_epub(epub_file, options={'ignore_ncx': False})
+
+    # 初始化内容列表
+    full_content = []
+
+    # 遍历EPUB中的所有章节
+    for item in book.get_items():
+        if isinstance(item, epub.EpubHtml):
+            # 提取HTML内容
+            content = item.get_body_content().decode('utf-8')
+
+            # 使用BeautifulSoup解析HTML内容
+            soup = BeautifulSoup(content, 'html.parser')
+
+            # 将HTML标签转换为TXT格式
+            text_content = soup.get_text()
+
+            # 清理文本内容
+            text_content = clean_text(text_content)
+
+            # 添加章节内容到列表
+            full_content.append(text_content)
+            full_content.append("\n\n\n")  # 在章节内容结束后增加3行空行
+
+    # 将所有章节内容合并到一个字符串
+    full_text = '\n'.join(full_content)
+
+    # 写入单个TXT文件
+    with open(output_file, 'w', encoding='utf-8') as txt_file:
+        txt_file.write(full_text)
+        print(f'EPUB content has been converted to "{output_file}".')
+
+
+# 使用方法
+epub_file_path = 'data/epub/(2016年)企业人力资源管理师考试辅导系列·企业人力资源管理师(二级)历年真题详解_职业道德、理论知识+专业能力(第2版)_圣才学习网.epub'
+output_file_path = 'data/output/txt/full_content5.txt'
+epub_to_single_txt(epub_file_path, output_file_path)
